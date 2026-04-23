@@ -1,25 +1,12 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Snooker Cricket Tournament</title>
-<link rel="manifest" href="manifest.json">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0f1a">
-<link rel="apple-touch-icon" href="icon-512.png">
+<title>Snooker Cricket Manager Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed: ', err));
-  });
-}
-</script>
 <style>
 :root {
   --bg: #080c14;
@@ -42,10 +29,6 @@ if ('serviceWorker' in navigator) {
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden;}
 body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(59,130,246,0.08),transparent),radial-gradient(ellipse 40% 30% at 80% 80%,rgba(245,158,11,0.04),transparent);pointer-events:none;z-index:0;}
-
-/* LOGIN SCREEN */
-.login-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;transition:opacity .5s;}
-.login-box{background:var(--card);padding:40px;border-radius:24px;border:1px solid var(--border2);width:100%;max-width:400px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,0.6);}
 
 /* LAYOUT */
 .app{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:20px;}
@@ -211,24 +194,9 @@ td.bold{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accen
 </style>
 </head>
 <body>
-
-<div id="login-screen" class="login-overlay">
-  <div class="login-box">
-    <div class="logo" style="font-size:2rem; margin-bottom:10px">SECURITY CHECK</div>
-    <div class="logo-sub" style="margin-bottom:30px">Restricted Access Only</div>
-    <div class="form-group"><label>User ID</label><input type="text" id="login-id" placeholder="Enter ID..." onkeydown="if(event.key==='Enter')Auth.login()"></div>
-    <div class="form-group" style="position:relative">
-      <label>Password</label>
-      <input type="password" id="login-pw" placeholder="Enter Password..." onkeydown="if(event.key==='Enter')Auth.login()">
-      <span onclick="Auth.togglePw()" style="position:absolute; right:12px; top:34px; cursor:pointer; opacity:0.6; font-size:1.2rem">👁️</span>
-    </div>
-    <button class="btn btn-primary" style="width:100%; margin-top:10px" onclick="Auth.login()">🔓 Login to System</button>
-  </div>
-</div>
-
 <div class="app">
   <header>
-    <div class="logo">🎱 SNOOKER CRICKET TOURNAMENT</div>
+    <div class="logo">🎱 SNOOKER CRICKET MANAGER</div>
     <div class="logo-sub">Tournament Management System</div>
   </header>
 
@@ -384,39 +352,8 @@ td.bold{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accen
 
 <script>
 // ═══════════════════════════════════════════
-// CLOUD CONFIG
+// STATE
 // ═══════════════════════════════════════════
-const SB_URL = 'https://njagplzcgxaiequnubub.supabase.co';
-const SB_KEY = 'sb_publishable_Lz5C2_T3ZBOMzCSv1jwPNQ_qVf_3WaP';
-const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY) : null;
-
-// ═══════════════════════════════════════════
-// AUTHENTICATION
-// ═══════════════════════════════════════════
-const Auth = {
-  async login() {
-    const id = document.getElementById('login-id').value;
-    const pw = document.getElementById('login-pw').value;
-    if(id === 'ROCKET' && pw === 'JOLLY') {
-      localStorage.setItem('sncm_auth', 'true');
-      document.getElementById('login-screen').style.opacity = '0';
-      setTimeout(() => document.getElementById('login-screen').style.display = 'none', 500);
-      UI.toast('Welcome back, ROCKET! Syncing cloud data...', 'success');
-      await Store.load(); // Fetch latest from cloud on login
-    } else {
-      UI.toast('Invalid Credentials', 'error');
-    }
-  },
-  check() {
-    if(localStorage.getItem('sncm_auth') === 'true') {
-      document.getElementById('login-screen').style.display = 'none';
-    }
-  },
-  togglePw() {
-    const p = document.getElementById('login-pw');
-    p.type = p.type === 'password' ? 'text' : 'password';
-  }
-};
 window.TS = {
   players: { pro: [], med: [] },
   teams: [],
@@ -428,40 +365,34 @@ window.TS = {
 };
 
 const Store = {
-  async save() {
-    try {
-      localStorage.setItem('sncm_v2', JSON.stringify(window.TS));
-      if (sb) {
-        await sb.from('tournament_data').update({ data: window.TS }).eq('user_id', 'ROCKET');
-      }
-    } catch(e){ console.error('Save error', e); }
-  },
-  async load() {
+  save() { try { localStorage.setItem('sncm_v2', JSON.stringify(window.TS)); } catch(e){} },
+  load() {
     try {
       const d = localStorage.getItem('sncm_v2');
-      if (d) window.TS = { ...window.TS, ...JSON.parse(d) };
-
-      if (sb && localStorage.getItem('sncm_auth') === 'true') {
-        const { data, error } = await sb.from('tournament_data').select('data').eq('user_id', 'ROCKET').single();
-        if (data && data.data && Object.keys(data.data).length > 0) {
-          window.TS = { ...window.TS, ...data.data };
-          this.refreshAll();
+      if (d) {
+        const parsed = JSON.parse(d);
+        window.TS = { ...window.TS, ...parsed };
+        // Sanitize IDs
+        ['pro','med'].forEach(t => {
+          window.TS.players[t] = (window.TS.players[t] || []).map(p => ({
+            ...p,
+            id: p.id ? String(p.id) : 'p_' + Math.random().toString(36).substr(2,9)
+          }));
+        });
+        window.TS.teams = (window.TS.teams || []).map(t => ({ ...t, id: String(t.id) }));
+        window.TS.groups = window.TS.groups || { A:[], B:[], C:[], D:[] };
+        ['A','B','C','D'].forEach(g => {
+          window.TS.groups[g] = (window.TS.groups[g] || []).map(id => String(id));
+        });
+        if (window.TS.matches) {
+          window.TS.matches = window.TS.matches.map(m => ({
+            ...m,
+            t1: m.t1 ? String(m.t1) : null,
+            t2: m.t2 ? String(m.t2) : null
+          }));
         }
       }
-      this.sanitize();
     } catch(e) { console.error('Load error', e); }
-  },
-  sanitize() {
-    ['pro','med'].forEach(t => {
-      window.TS.players[t] = (window.TS.players[t] || []).map(p => ({
-        ...p, id: p.id ? String(p.id) : 'p_' + Math.random().toString(36).substr(2,9)
-      }));
-    });
-    window.TS.teams = (window.TS.teams || []).map(t => ({ ...t, id: String(t.id) }));
-    window.TS.groups = window.TS.groups || { A:[], B:[], C:[], D:[] };
-  },
-  refreshAll() {
-    Players.render(); Draw.renderTeams(); Draw.updateByes(); Schedule.render(); Standings.render();
   }
 };
 
@@ -950,9 +881,8 @@ document.getElementById('score-modal').addEventListener('click', function(e) {
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
-window.onload = async () => {
-  Auth.check();
-  await Store.load();
+window.onload = () => {
+  Store.load();
   Players.render();
   Draw.renderTeams();
   Draw.updateByes();
@@ -963,11 +893,6 @@ window.onload = async () => {
   }
   // Restore schedule if exists
   if (window.TS.matches && window.TS.matches.length) Schedule.render();
-  
-  // REGISTER SERVICE WORKER FOR MOBILE APP
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW failed', err));
-  }
 };
 </script>
 </body>
