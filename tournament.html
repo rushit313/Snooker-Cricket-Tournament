@@ -201,10 +201,41 @@ td.bold{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accen
 
 /* RESPONSIVE */
 @media(max-width:600px){
+  .app{padding:12px 14px;}
+  header{padding:20px 0 14px;}
+  .logo{font-size:1.8rem;letter-spacing:2px;}
+  .logo-sub{letter-spacing:3px;}
+  .tabs{margin-bottom:20px;}
+  .tab{padding:10px 6px;font-size:0.8rem;}
+  .card{padding:16px;}
+  .section-title{font-size:1.2rem;}
   .grid2,.grid3{grid-template-columns:1fr;}
-  .logo{font-size:2rem;}
-  .timer-display{font-size:2.5rem;}
   .settings-row{grid-template-columns:1fr 1fr;}
+  input,select{font-size:16px;}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  th{white-space:nowrap;}
+  .modal-overlay{padding:12px;}
+  .modal{padding:22px 18px;max-height:90vh;overflow-y:auto;}
+  .modal-title{font-size:1.3rem;}
+  .timer-display{font-size:2.2rem;}
+  .score-row{gap:12px;}
+  .score-inputs{gap:5px;}
+  .score-inputs input{padding:12px 6px;font-size:1rem;}
+  .vs-divider{font-size:1.4rem;padding-top:26px;}
+  #toast-container{right:12px;left:12px;bottom:16px;}
+  .toast{text-align:center;}
+  .login-box{padding:24px 20px;}
+  .btn{min-height:44px;}
+  .btn-row{gap:8px;}
+  .btn-xs{min-height:36px;}
+  .btn-sm{min-height:40px;}
+}
+@media(max-width:380px){
+  .logo{font-size:1.6rem;}
+  .tab{font-size:0.72rem;padding:9px 4px;}
+  .score-row{grid-template-columns:1fr;gap:8px;}
+  .vs-divider{padding-top:0;font-size:1.2rem;}
+  .score-inputs{justify-content:center;}
 }
 /* AUTH PERSISTENCE */
 .authenticated #login-screen { display: none !important; }
