@@ -14,6 +14,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// Check auth immediately to prevent flicker
+(function() {
+  if (localStorage.getItem('sncm_auth') === 'true') {
+    document.documentElement.classList.add('authenticated');
+  }
+})();
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed: ', err));
@@ -208,6 +215,8 @@ td.bold{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accen
   .timer-display{font-size:2.5rem;}
   .settings-row{grid-template-columns:1fr 1fr;}
 }
+/* AUTH PERSISTENCE */
+.authenticated #login-screen { display: none !important; }
 </style>
 </head>
 <body>
@@ -431,24 +440,33 @@ const Store = {
   async save() {
     try {
       localStorage.setItem('sncm_v2', JSON.stringify(window.TS));
-      if (sb) {
+      if (sb && localStorage.getItem('sncm_auth') === 'true') {
         await sb.from('tournament_data').update({ data: window.TS }).eq('user_id', 'ROCKET');
       }
     } catch(e){ console.error('Save error', e); }
   },
   async load() {
     try {
+      // 1. Load from LocalStorage first for instant UI
       const d = localStorage.getItem('sncm_v2');
-      if (d) window.TS = { ...window.TS, ...JSON.parse(d) };
+      if (d) {
+        window.TS = { ...window.TS, ...JSON.parse(d) };
+        this.sanitize();
+        this.refreshAll(); // Show local data immediately
+      }
 
+      // 2. Then sync from Cloud if authenticated
       if (sb && localStorage.getItem('sncm_auth') === 'true') {
         const { data, error } = await sb.from('tournament_data').select('data').eq('user_id', 'ROCKET').single();
         if (data && data.data && Object.keys(data.data).length > 0) {
+          // Merge or overwrite? User expects cloud to be source of truth
           window.TS = { ...window.TS, ...data.data };
+          this.sanitize();
           this.refreshAll();
+          // Save back to local to keep in sync
+          localStorage.setItem('sncm_v2', JSON.stringify(window.TS));
         }
       }
-      this.sanitize();
     } catch(e) { console.error('Load error', e); }
   },
   sanitize() {
