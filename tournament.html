@@ -601,18 +601,25 @@ const Draw = {
     const p = [...window.TS.players.pro].sort(() => Math.random() - 0.5);
     const m = [...window.TS.players.med].sort(() => Math.random() - 0.5);
     if (p.length === 0 || m.length === 0) { UI.toast('Add players first!', 'error'); return; }
-    if (p.length !== m.length) { UI.toast('Team A and B must have equal players', 'error'); return; }
-    window.TS.teams = p.map((pr, i) => ({
+    const count = Math.min(p.length, m.length);
+    window.TS.teams = p.slice(0, count).map((pr, i) => ({
       id: String(i + 1),
       name: pr.name + ' & ' + m[i].name,
       p1: pr.id, p2: m[i].id
     }));
+    // Leftover players from the larger group become solo teams
+    const leftoverA = p.slice(count);
+    const leftoverB = m.slice(count);
+    [...leftoverA, ...leftoverB].forEach((pl, i) => {
+      window.TS.teams.push({ id: String(count + i + 1), name: pl.name + ' (Solo)', p1: pl.id, p2: null });
+    });
     if (window.TS.format === 'round_robin') {
       window.TS.groups = { A:[], B:[], C:[], D:[] };
       window.TS.teams.forEach((t, i) => window.TS.groups[['A','B','C','D'][i % 4]].push(t.id));
     }
+    const soloCount = leftoverA.length + leftoverB.length;
     Store.save(); this.renderTeams(); this.updateByes();
-    UI.toast(window.TS.teams.length + ' teams drawn randomly!', 'success');
+    UI.toast(window.TS.teams.length + ' teams drawn!' + (soloCount > 0 ? ' (' + soloCount + ' solo team added)' : ''), 'success');
   },
   toggleManual() {
     const ui = document.getElementById('manual-ui');
@@ -724,12 +731,42 @@ const Schedule = {
         document.getElementById('bye2')?.value
       ].filter(Boolean);
       const active = ts.filter(t => !byeIds.includes(t.id));
-      for (let i = 0; i < Math.floor(active.length / 2); i++) {
-        queue.push({ group: 'Knockout', t1: active[i].id, t2: active[active.length - 1 - i].id });
+      const n = active.length;
+
+      const getStageName = (c, r) => c <= 2 ? 'Grand Final' : c <= 4 ? 'Semi Finals' : c <= 8 ? 'Quarter Finals' : 'Round ' + r;
+      const getAbbr = name => name === 'Grand Final' ? 'F' : name === 'Semi Finals' ? 'SF' : name === 'Quarter Finals' ? 'QF' : name.replace('Round ', 'R');
+
+      const firstStage = getStageName(n, 1);
+      const firstAbbr = getAbbr(firstStage);
+
+      // First round: actual team matchups
+      for (let i = 0; i < Math.floor(n / 2); i++) {
+        queue.push({ group: firstStage, label: firstAbbr + (i + 1), t1: active[i].id, t2: active[n - 1 - i].id });
       }
-      if (active.length % 2 !== 0) {
-        const leftover = active[Math.floor(active.length/2)];
-        queue.push({ group: 'Knockout', t1: leftover.id, t2: null, t1d: leftover.name, t2d: 'BYE' });
+      if (n % 2 !== 0) {
+        const mid = active[Math.floor(n / 2)];
+        queue.push({ group: firstStage, label: firstAbbr + (Math.floor(n / 2) + 1), t1: mid.id, t2: null, t1d: mid.name, t2d: 'BYE' });
+      }
+
+      // Dynamically generate subsequent rounds until Grand Final
+      let advancing = Math.ceil(n / 2);
+      let prevStage = firstStage;
+      let roundNum = 2;
+      while (advancing > 1) {
+        const stage = getStageName(advancing, roundNum);
+        const prevAbbr = getAbbr(prevStage);
+        const matches = Math.floor(advancing / 2);
+        const hasBye = advancing % 2 !== 0;
+        for (let i = 0; i < matches; i++) {
+          const label = stage === 'Grand Final' ? 'Final' : getAbbr(stage) + (i + 1);
+          queue.push({ group: stage, label, t1: null, t2: null, t1d: 'Winner ' + prevAbbr + (i * 2 + 1), t2d: 'Winner ' + prevAbbr + (i * 2 + 2) });
+        }
+        if (hasBye) {
+          queue.push({ group: stage, t1: null, t2: null, t1d: 'Winner ' + prevAbbr + (matches * 2 + 1), t2d: 'BYE' });
+        }
+        prevStage = stage;
+        advancing = Math.ceil(advancing / 2);
+        roundNum++;
       }
     } else {
       // Round robin group stage
@@ -740,16 +777,14 @@ const Schedule = {
           for (let j = i+1; j < ids.length; j++)
             queue.push({ group: 'Group ' + gn, t1: ids[i], t2: ids[j] });
       });
-      // Quarter Finals
       queue.push({ group: 'Quarter Finals', label: 'QF1', t1: null, t2: null, t1d: '1st A', t2d: '2nd C' });
       queue.push({ group: 'Quarter Finals', label: 'QF2', t1: null, t2: null, t1d: '1st B', t2d: '2nd D' });
       queue.push({ group: 'Quarter Finals', label: 'QF3', t1: null, t2: null, t1d: '1st C', t2d: '2nd A' });
       queue.push({ group: 'Quarter Finals', label: 'QF4', t1: null, t2: null, t1d: '1st D', t2d: '2nd B' });
+      queue.push({ group: 'Semi Finals', label: 'SF1', t1: null, t2: null, t1d: 'Winner QF1', t2d: 'Winner QF2' });
+      queue.push({ group: 'Semi Finals', label: 'SF2', t1: null, t2: null, t1d: 'Winner QF3', t2d: 'Winner QF4' });
+      queue.push({ group: 'Grand Final', label: 'Final', t1: null, t2: null, t1d: 'Winner SF1', t2d: 'Winner SF2' });
     }
-    // Semis & Final always
-    queue.push({ group: 'Semi Finals', label: 'SF1', t1: null, t2: null, t1d: 'Winner QF1', t2d: 'Winner QF2' });
-    queue.push({ group: 'Semi Finals', label: 'SF2', t1: null, t2: null, t1d: 'Winner QF3', t2d: 'Winner QF4' });
-    queue.push({ group: 'Grand Final', label: 'Final', t1: null, t2: null, t1d: 'Winner SF1', t2d: 'Winner SF2' });
 
     // Schedule with CORRECT day tracking
     let id = 1;
